@@ -36,3 +36,26 @@ Any and all responsibilities for system failures, data loss, malfunctions, and l
 
 "본 코드를 보관하고 실행하는 것은 위 조항에 전적으로 동의함을 의미합니다."
 "Storing and executing this code implies full agreement with the above terms and conditions."
+
+---
+
+## Code Explanation
+
+이 스크립트는 시스템 파일 권한을 영구적으로 변경하지 않고, 메모리 상에서 `TrustedInstaller` 서비스의 보안 토큰을 위임(Impersonation)받아 새 프로세스를 실행합니다.
+
+### 1. PowerShell Wrapper Layer
+* **Administrator Privilege Check**: 현재 세션이 관리자 계정인지 확인하고, 아닐 경우 UAC(사용자 계정 컨트롤) 승인을 자동으로 요청하여 다시 시작합니다.
+* **Execution Policy**: 해당 PowerShell 세션 범위 안에서만 스크립트 실행 규칙을 일시적으로 완화합니다.
+* **Add-Type Compilation**: 메모리 내에 동일한 타입이 존재하지 않는 경우에만 내장 컴파일러를 통해 인라인 C# 코드를 안전하게 로드합니다.
+
+### 2. C# Core Logic Layer (Win32 API Interaction)
+* **Privilege Elevation (`AdjustTokenPrivileges`)**: 시스템 프로세스의 토큰 정보를 참조하기 위해 현재 프로세스에 디버그 특권(`SeDebugPrivilege`)을 활성화합니다.
+* **Service Control (`ServiceController`)**: 백그라운드에서 `TrustedInstaller` 서비스의 가동 여부를 검사하고, 실행 상태가 아니라면 활성화하여 대기합니다.
+* **Process Discovery & Handle Management**:
+  * 구동 중인 `TrustedInstaller` 프로세스를 안전하게 탐색하고, 작업 후 배열 내 프로세스 개체들을 즉시 `Dispose()` 처리하여 자원 누수를 방지합니다.
+  * 대상 프로세스로부터 정보 조회 권한 핸들을 안전하게 엽니다.
+* **Token Duplication (`DuplicateTokenEx`)**: 확보한 프로세스 핸들 내부의 기본 토큰 정보를 복제하여 임의 프로세스 생성이 가능한 최고 수준의 가용 자원 토큰을 획득합니다.
+* **Process Creation with Token (`CreateProcessWithTokenW`)**: 
+  * 복제 가공된 시스템 보안 토큰을 직접 할당하여 `cmd.exe` 프로세스를 초기화합니다.
+  * 최신 UAC 정책 하에서 GUI 창이 백그라운드(Session 0)로 숨는 문제를 방지하기 위해 데스크톱 기본 윈도우 환경인 `winsta0\default` 환경을 구조체 상에 고정 명시합니다.
+* **Resource Cleanup (`try-finally`)**: 가동 중 내부 API 오류나 예외 상태가 발생하더라도 열려있는 모든 OS 포인터 자원(`IntPtr`)을 실시간 추적하여 `CloseHandle`을 통해 완전히 회수합니다.
