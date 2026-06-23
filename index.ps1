@@ -17,6 +17,13 @@ using System;
 using System.Runtime.InteropServices;
 
 public class TI {
+    private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+    private const uint TOKEN_QUERY = 0x0008;
+    private const uint TOKEN_DUPLICATE = 0x0002;
+    private const uint PROCESS_QUERY_INFORMATION = 0x0400;
+    private const uint SE_PRIVILEGE_ENABLED = 2;
+    private const uint LOGON_WITH_PROFILE = 1;
+
     [StructLayout(LayoutKind.Sequential)]
     public struct STARTUPINFO {
         public Int32 cb;
@@ -91,11 +98,11 @@ public class TI {
         PROCESS_INFORMATION pi = default;
 
         try {
-            OpenProcessToken(GetCurrentProcess(), 0x0020, out hToken);
+            OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out hToken);
             TOKEN_PRIVILEGES tp;
             tp.PrivilegeCount = 1;
             LookupPrivilegeValue(null, "SeDebugPrivilege", out tp.Privileges.Luid);
-            tp.Privileges.Attributes = 2;
+            tp.Privileges.Attributes = SE_PRIVILEGE_ENABLED;
             AdjustTokenPrivileges(hToken, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
             CloseHandle(hToken);
             hToken = IntPtr.Zero;
@@ -108,19 +115,27 @@ public class TI {
             }
 
             int tiPid = 0;
-            foreach (var p in System.Diagnostics.Process.GetProcessesByName("TrustedInstaller")) {
-                tiPid = p.Id;
-                break;
+            var processes = System.Diagnostics.Process.GetProcessesByName("TrustedInstaller");
+            try {
+                foreach (var p in processes) {
+                    tiPid = p.Id;
+                    break;
+                }
+            }
+            finally {
+                foreach (var p in processes) {
+                    p.Dispose();
+                }
             }
 
-            hProcess = OpenProcess(0x0400, false, tiPid);
-            OpenProcessToken(hProcess, 0x0002, out hTiToken);
+            hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, false, tiPid);
+            OpenProcessToken(hProcess, TOKEN_DUPLICATE, out hTiToken);
 
             DuplicateTokenEx(hTiToken, 0x00020000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040 | 0x0080 | 0x0100, IntPtr.Zero, 2, 1, out hNewToken);
 
             STARTUPINFO si = new STARTUPINFO();
             si.cb = Marshal.SizeOf(si);
-            CreateProcessWithTokenW(hNewToken, 1, null, "cmd.exe", 0, IntPtr.Zero, null, ref si, out pi);
+            CreateProcessWithTokenW(hNewToken, LOGON_WITH_PROFILE, null, "cmd.exe", 0, IntPtr.Zero, null, ref si, out pi);
         }
         finally {
             if (pi.hThread != IntPtr.Zero) CloseHandle(pi.hThread);
@@ -134,7 +149,7 @@ public class TI {
 }
 "@
 
-if (-not ("TI" -as [type])) {
+if (-not ([System.Management.Automation.PSTypeName]'TI').Type) {
     Add-Type -TypeDefinition $code -ReferencedAssemblies "System.ServiceProcess"
 }
 [TI]::Run()
