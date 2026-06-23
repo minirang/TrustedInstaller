@@ -4,7 +4,8 @@ Powershell script running command prompt with TrustedInstaller privileges.
 
 ---
 
-## ⚠️ LEGAL DISCLAIMER & WARNING (법적 면책 조항 및 경고)
+<details>
+<summary><b>⚠️ LEGAL DISCLAIMER & WARNING (법적 면책 조항 및 경고) - 펼치기/접기</b></summary>
 
 [ KR ] 본 스크립트 파일의 사용 및 양도에 관한 엄중 경고
 본 스크립트는 Windows 운영체제의 내부 보안 아키텍처 및 권한 메커니즘을 테스트하고 분석하기 위해 작성된 교육 및 관리 목적의 도구입니다. 본 도구의 소유권을 이전받거나 실행하는 모든 사용자는 다음 사항을 반드시 인지하고 준수해야 합니다.
@@ -36,10 +37,12 @@ Any and all responsibilities for system failures, data loss, malfunctions, and l
 
 "본 코드를 보관하고 실행하는 것은 위 조항에 전적으로 동의함을 의미합니다."
 "Storing and executing this code implies full agreement with the above terms and conditions."
+</details>
 
 ---
 
-## Code Explanation
+<details>
+<summary><b>🔍 Code Explanation - 펼치기/접기</b></summary>
 
 이 스크립트는 시스템 파일 권한을 영구적으로 변경하지 않고, 메모리 상에서 `TrustedInstaller` 서비스의 보안 토큰을 위임(Impersonation)받아 새 프로세스를 실행합니다.
 
@@ -59,3 +62,4 @@ Any and all responsibilities for system failures, data loss, malfunctions, and l
   * 복제 가공된 시스템 보안 토큰을 직접 할당하여 `cmd.exe` 프로세스를 초기화합니다.
   * 최신 UAC 정책 하에서 GUI 창이 백그라운드(Session 0)로 숨는 문제를 방지하기 위해 데스크톱 기본 윈도우 환경인 `winsta0\default` 환경을 구조체 상에 고정 명시합니다.
 * **Resource Cleanup (`try-finally`)**: 가동 중 내부 API 오류나 예외 상태가 발생하더라도 열려있는 모든 OS 포인터 자원(`IntPtr`)을 실시간 추적하여 `CloseHandle`을 통해 완전히 회수합니다.
+</details>
