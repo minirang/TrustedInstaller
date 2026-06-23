@@ -1,3 +1,17 @@
+
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $arguments = "-NoProfile -ExecutionPolicy Bypass"
+    if ($MyInvocation.PsCommandPath) {
+        $arguments += " -File `"$PSCommandPath`""
+    } else {
+        $arguments += " -Command `"$($MyInvocation.Line)`""
+    }
+    Start-Process powershell -ArgumentList $arguments -Verb RunAs
+    exit
+}
+Set-ExecutionPolicy Bypass -Scope Process -Force
+
 $code = @"
 using System;
 using System.Runtime.InteropServices;
