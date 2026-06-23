@@ -135,6 +135,7 @@ public class TI {
 
             STARTUPINFO si = new STARTUPINFO();
             si.cb = Marshal.SizeOf(si);
+						si.lpDesktop = @"winsta0\default";
             CreateProcessWithTokenW(hNewToken, LOGON_WITH_PROFILE, null, "cmd.exe", 0, IntPtr.Zero, null, ref si, out pi);
         }
         finally {
