@@ -5,7 +5,7 @@ Powershell script running command prompt with TrustedInstaller privileges.
 ---
 
 <details>
-<summary><b>⚠️ LEGAL DISCLAIMER & WARNING (법적 면책 조항 및 경고) - 펼치기/접기</b></summary>
+<summary><b>[!] LEGAL DISCLAIMER & WARNING (법적 면책 조항 및 경고) - 펼치기/접기</b></summary>
 
 [ KR ] 본 스크립트 파일의 사용 및 양도에 관한 엄중 경고
 본 스크립트는 Windows 운영체제의 내부 보안 아키텍처 및 권한 메커니즘을 테스트하고 분석하기 위해 작성된 교육 및 관리 목적의 도구입니다. 본 도구의 소유권을 이전받거나 실행하는 모든 사용자는 다음 사항을 반드시 인지하고 준수해야 합니다.
@@ -42,7 +42,7 @@ Any and all responsibilities for system failures, data loss, malfunctions, and l
 ---
 
 <details>
-<summary><b>🔍 Code Explanation - 펼치기/접기</b></summary>
+<summary><b>Code Explanation - 펼치기/접기</b></summary>
 
 이 스크립트는 시스템 파일 권한을 영구적으로 변경하지 않고, 메모리 상에서 `TrustedInstaller` 서비스의 보안 토큰을 위임(Impersonation)받아 새 프로세스를 실행합니다.
 
