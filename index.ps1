@@ -1,8 +1,8 @@
-
-$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = [Security.Principal.WindowsPrincipal]$identity
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arguments = "-NoProfile -ExecutionPolicy Bypass"
-    if ($MyInvocation.PsCommandPath) {
+    if ($PSCommandPath) {
         $arguments += " -File `"$PSCommandPath`""
     } else {
         $arguments += " -Command `"$($MyInvocation.Line)`""
@@ -84,47 +84,57 @@ public class TI {
     public static extern bool CloseHandle(IntPtr hObject);
 
     public static void Run() {
-        IntPtr hToken;
-        OpenProcessToken(GetCurrentProcess(), 0x0020, out hToken);
-        TOKEN_PRIVILEGES tp;
-        tp.PrivilegeCount = 1;
-        LookupPrivilegeValue(null, "SeDebugPrivilege", out tp.Privileges.Luid);
-        tp.Privileges.Attributes = 2;
-        AdjustTokenPrivileges(hToken, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
-        CloseHandle(hToken);
+        IntPtr hToken = IntPtr.Zero;
+        IntPtr hProcess = IntPtr.Zero;
+        IntPtr hTiToken = IntPtr.Zero;
+        IntPtr hNewToken = IntPtr.Zero;
+        PROCESS_INFORMATION pi = default;
 
-        var sc = new System.ServiceProcess.ServiceController("TrustedInstaller");
-        if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running) {
-            sc.Start();
-            sc.WaitForStatus(System.ServiceProcess.ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+        try {
+            OpenProcessToken(GetCurrentProcess(), 0x0020, out hToken);
+            TOKEN_PRIVILEGES tp;
+            tp.PrivilegeCount = 1;
+            LookupPrivilegeValue(null, "SeDebugPrivilege", out tp.Privileges.Luid);
+            tp.Privileges.Attributes = 2;
+            AdjustTokenPrivileges(hToken, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+            CloseHandle(hToken);
+            hToken = IntPtr.Zero;
+
+            using (var sc = new System.ServiceProcess.ServiceController("TrustedInstaller")) {
+                if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running) {
+                    sc.Start();
+                    sc.WaitForStatus(System.ServiceProcess.ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+                }
+            }
+
+            int tiPid = 0;
+            foreach (var p in System.Diagnostics.Process.GetProcessesByName("TrustedInstaller")) {
+                tiPid = p.Id;
+                break;
+            }
+
+            hProcess = OpenProcess(0x0400, false, tiPid);
+            OpenProcessToken(hProcess, 0x0002, out hTiToken);
+
+            DuplicateTokenEx(hTiToken, 0x00020000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040 | 0x0080 | 0x0100, IntPtr.Zero, 2, 1, out hNewToken);
+
+            STARTUPINFO si = new STARTUPINFO();
+            si.cb = Marshal.SizeOf(si);
+            CreateProcessWithTokenW(hNewToken, 1, null, "cmd.exe", 0, IntPtr.Zero, null, ref si, out pi);
         }
-
-        int tiPid = 0;
-        foreach (var p in System.Diagnostics.Process.GetProcessesByName("TrustedInstaller")) {
-            tiPid = p.Id;
-            break;
+        finally {
+            if (pi.hThread != IntPtr.Zero) CloseHandle(pi.hThread);
+            if (pi.hProcess != IntPtr.Zero) CloseHandle(pi.hProcess);
+            if (hNewToken != IntPtr.Zero) CloseHandle(hNewToken);
+            if (hTiToken != IntPtr.Zero) CloseHandle(hTiToken);
+            if (hProcess != IntPtr.Zero) CloseHandle(hProcess);
+            if (hToken != IntPtr.Zero) CloseHandle(hToken);
         }
-
-        IntPtr hProcess = OpenProcess(0x0400, false, tiPid);
-        IntPtr hTiToken;
-        OpenProcessToken(hProcess, 0x0002, out hTiToken);
-
-        IntPtr hNewToken;
-        DuplicateTokenEx(hTiToken, 0x00020000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040 | 0x0080 | 0x0100, IntPtr.Zero, 2, 1, out hNewToken);
-
-        STARTUPINFO si = new STARTUPINFO();
-        si.cb = Marshal.SizeOf(si);
-        PROCESS_INFORMATION pi;
-        CreateProcessWithTokenW(hNewToken, 1, null, "cmd.exe", 0, IntPtr.Zero, null, ref si, out pi);
-
-        CloseHandle(pi.hThread);
-        CloseHandle(pi.hProcess);
-        CloseHandle(hNewToken);
-        CloseHandle(hTiToken);
-        CloseHandle(hProcess);
     }
 }
 "@
 
-Add-Type -TypeDefinition $code -ReferencedAssemblies "System.ServiceProcess"
+if (-not ("TI" -as [type])) {
+    Add-Type -TypeDefinition $code -ReferencedAssemblies "System.ServiceProcess"
+}
 [TI]::Run()
