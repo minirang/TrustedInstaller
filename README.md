@@ -6,7 +6,7 @@ Powershell script running command prompt with TrustedInstaller privileges.
 
 <details>
 <summary><b>[!] LEGAL DISCLAIMER & WARNING (법적 면책 조항 및 경고) - 펼치기/접기</b></summary>
-
+<br>
 [ KR ] 본 스크립트 파일의 사용에 관한 엄중 경고  
 본 스크립트는 Windows 운영체제의 내부 보안 아키텍처 및 권한 메커니즘을 테스트하고 분석하기 위해 작성된 교육 및 관리 목적의 도구입니다. 본 도구를 실행하는 모든 사용자는 다음 사항을 반드시 인지하고 준수해야 합니다.
 
